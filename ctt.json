@@ -1,5 +1,7 @@
 {
-  "asset": ""
+  "asset": "",
+  "client_id": "",
+  "client_secret": "",
   "exchange": "binance",
   "market": "BTCUSDT",
   "start_date": "05/02/2022 01",
