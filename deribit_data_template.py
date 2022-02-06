@@ -1,15 +1,19 @@
 import requests as rq
+
+import sys
 import json
 
+with open(sys.argv[1], 'r') as f:
+    data = json.load(f)
 
 class DeribitCALC:
     def __init__(self):
         self.deribit_url = "https://www.deribit.com/api/v2"
         self.pub_auth_endpoint = "/public/auth"
         self.private_endpoint = "/private/get_account_summary"  # Change endpoint to your liking docs.deribit.com/?shell
-        self.currency = "BTC"
-        self.client_id = ""
-        self.client_secret = ""
+        self.currency = data['asset']
+        self.client_id = data['client_id']
+        self.client_secret = data['client_secret']
         self.grant_type = "client_credentials"
         self.pub_params = {
             'client_id': self.client_id, 'client_secret': self.client_secret, 'grant_type': self.grant_type
@@ -35,7 +39,7 @@ class DeribitCALC:
 
 if __name__ == '__main__':
     DeribitCALC().desired_data()
-    # DeribitCALC().testing()       # USE FOR TESTING
+    # DeribitCALC().testing()
 
 
 
