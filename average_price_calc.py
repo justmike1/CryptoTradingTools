@@ -1,7 +1,6 @@
 import requests as rq
 import re
 from datetime import datetime
-import time
 import logging
 
 import json
@@ -13,21 +12,25 @@ with open(sys.argv[1], 'r') as f:
 
 class AveragePrice:
     def __init__(self):
+        logging.basicConfig(
+                    level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        
         self.exchange = str(data['exchange']).lower()
         self.market = str(data['market'])  # every exchange utilizes different format
         self.start_date = data['start_date']
         self.end_date = data['end_date']
         # must be in that format
-        self.ts_start = int(time.mktime(datetime.strptime(self.start_date, "%d/%m/%Y %H").timetuple()))
-        self.ts_end = int(time.mktime(datetime.strptime(self.end_date, "%d/%m/%Y %H").timetuple()))
+        self.ts_start = int(datetime.strptime(self.start_date, "%m/%d/%Y %H").timestamp())
+        self.ts_end = int(datetime.strptime(self.end_date, "%m/%d/%Y %H").timestamp())
         # ISO 8601 conversion
         self.ts_start_iso = datetime.fromtimestamp(self.ts_start).isoformat()
         self.ts_end_iso = datetime.fromtimestamp(self.ts_end).isoformat()
 
-        if 'binance' or 'ascendex' or 'bitfinex' == self.exchange.lower():  # must be in milliseconds
+        if self.exchange in ('binance', 'ascendex', 'bitfinex'):
             self.ts_start *= 1000
             self.ts_end *= 1000
-        if 'coinbase' == self.exchange.lower():
+        elif 'coinbase' == self.exchange:
             self.ts_start = self.ts_start_iso
             self.ts_end = self.ts_end_iso
 
@@ -67,25 +70,33 @@ class AveragePrice:
                     for price in self.price_endpoints.get(exchange)[1](res.json()):
                         if exchange == 'ascendex':
                             price = float(dict(price).get('data', {}).get('o'))
+                            logging.info(f"{price} {len(self.price_database)}")
                             self.price_database.append(price)
                         else:
                             index = self.price_endpoints.get(exchange)[2]
                             price = float(price[index])
+                            logging.info(f"{price} {len(self.price_database)}")
                             self.price_database.append(price)
                     logging.info(f"successfully fetched market {self.market} in {exchange}")
                     return
 
     def get_average(self):
-        self.average = sum(self.price_database) / len(self.price_database)
-        if self.average > 1:
-            self.average = round(sum(self.price_database) / len(self.price_database), 5)
-        logging.info(f"the amount of prices saved in the database is {len(self.price_database)} (= hours searched)")
-        logging.info(f"the average price of the whole performance is {self.average}")
-        return self.average
+        try:
+            self.average = sum(self.price_database) / len(self.price_database)
+            if self.average > 1:
+                self.average = round(sum(self.price_database) / len(self.price_database), 5)
+            logging.info(f"the amount of prices saved in the database is {len(self.price_database)} (= hours searched)")
+            logging.info(f"the average price of the whole performance is {self.average}")
+            return self.average
+        except ZeroDivisionError as zde:
+            if self.exchange == 'coinbase':
+                logging.error("Check the date in config, coinbase only allows 300 hours max (12.5 days)")
+            else:
+                logging.error(f"The API didn't fetch any data: {zde}, check config")
 
     def start(self):
         if self.exchange not in self.price_endpoints or re.search('[a-zA-Z]', self.start_date + self.end_date):
-            raise Exception("config error")
+            raise Exception("You have a typo in config or exchange is not supported")
         logging.info(f"start timestamp: {self.ts_start}, end timestamp: {self.ts_end}")
         self.get_price()
         self.get_average()
