@@ -36,49 +36,55 @@ class AveragePrice:
 
         self.average = 0
         self.price_database = []
-        self.price_endpoints = {
-            'binance': [
-                f"https://api.binance.com/api/v3/klines?symbol={self.market}&interval=1h&startTime={str(self.ts_start)}&endTime={str(self.ts_end)}",
-                lambda res_data: res_data, 1],
-            'coinbase': [
-                f"https://api.exchange.coinbase.com/products/{self.market}/candles?start={str(self.ts_start)}&end={str(self.ts_end)}&granularity=3600",
-                lambda res_data: res_data, 3],
-            'gateio': [
-                f"https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair={self.market}&interval=1h&from={str(self.ts_start)}&to={str(self.ts_end)}",
-                lambda res_data: res_data, -1],
-            'kucoin': [
-                f"https://api.kucoin.com/api/v1/market/candles?type=1hour&symbol={self.market}&startAt={str(self.ts_start)}&endAt={str(self.ts_end)}",
-                lambda res_data: res_data['data'], 1],
-            'ascendex': [
-                f"https://ascendex.com/api/pro/v1/barhist?symbol={self.market}&interval=60&from={str(self.ts_start)}&to={str(self.ts_end)}",
-                lambda res_data: res_data['data']],
-            'bitfinex': [
-                f"https://api-pub.bitfinex.com/v2/candles/trade:1h:{self.market}/hist?start={str(self.ts_start)}&end={str(self.ts_end)}",
-                lambda res_data: res_data, 1],
-        }
 
         self.start()
 
-    def get_price(self):
-        for exchange in self.price_endpoints.keys():
+    def fetch_klines(self, market, start, end):
+        for exchange, val in {
+            'binance': [
+                f"https://api.binance.com/api/v3/klines?symbol={market}&interval=1h&startTime={start}&endTime={end}",
+                lambda res_data: res_data, 1],
+            'coinbase': [
+                f"https://api.exchange.coinbase.com/products/{market}/candles?start={start}&end={end}&granularity=3600",
+                lambda res_data: res_data, 3],
+            'gateio': [
+                f"https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair={market}&interval=1h&from={start}&to={end}",
+                lambda res_data: res_data, -1],
+            'kucoin': [
+                f"https://api.kucoin.com/api/v1/market/candles?type=1hour&symbol={market}&startAt={start}&endAt={end}",
+                lambda res_data: res_data['data'], 1],
+            'ascendex': [
+                f"https://ascendex.com/api/pro/v1/barhist?symbol={market}&interval=60&from={start}&to={end}",
+                lambda res_data: res_data['data']],
+            'bitfinex': [
+                f"https://api-pub.bitfinex.com/v2/candles/trade:1h:{market}/hist?start={start}&end={end}",
+                lambda res_data: res_data, 1],
+        }.items():
+            url = val[0]
+            fetch = val[1]
+            index = val[2]
             if exchange == self.exchange:
-                res = rq.get(self.price_endpoints.get(exchange)[0])
+                res = rq.get(url)
                 if res.status_code != 200:
-                    logging.error(f"{res.status_code}, check {exchange} and {self.market} in the config")
+                    logging.error(f"{res.status_code}, check {exchange} and {market} in the config")
                     return
                 else:
-                    for price in self.price_endpoints.get(exchange)[1](res.json()):
-                        if exchange == 'ascendex':
-                            price = float(dict(price).get('data', {}).get('o'))
-                            logging.info(f"{price} {len(self.price_database)}")
-                            self.price_database.append(price)
-                        else:
-                            index = self.price_endpoints.get(exchange)[2]
-                            price = float(price[index])
-                            logging.info(f"{price} {len(self.price_database)}")
-                            self.price_database.append(price)
-                    logging.info(f"successfully fetched market {self.market} in {exchange}")
-                    return
+                    logging.info(f"successfully fetched market {market} in {exchange}")
+                    return self.get_price(exchange, fetch(res.json()), index)
+            else:
+                logging.error("exchange config error or not supported")
+
+    def get_price(self, exchange, open_candle, index):
+        for price in open_candle:
+            if exchange == 'ascendex':
+                price = float(dict(price).get('data', {}).get('o'))
+                logging.info(f"{price} {len(self.price_database)}")
+                self.price_database.append(price)
+            else:
+                price = float(price[index])
+                logging.info(f"{price} {len(self.price_database)}")
+                self.price_database.append(price)
+        return
 
     def get_average(self):
         try:
@@ -95,10 +101,10 @@ class AveragePrice:
                 logging.error(f"The API didn't fetch any data: {zde}, check config")
 
     def start(self):
-        if self.exchange not in self.price_endpoints or re.search('[a-zA-Z]', self.start_date + self.end_date):
-            raise Exception("You have a typo in config or exchange is not supported")
+        if re.search('[a-zA-Z]', self.start_date + self.end_date):
+            raise Exception("date config error")
         logging.info(f"start timestamp: {self.ts_start}, end timestamp: {self.ts_end}")
-        self.get_price()
+        self.fetch_klines(self.market, self.ts_start, self.ts_end)
         self.get_average()
 
 
