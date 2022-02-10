@@ -55,13 +55,13 @@ class AveragePrice:
                 lambda res_data: res_data['data'], 1],
             'ascendex': [
                 f"https://ascendex.com/api/pro/v1/barhist?symbol={market}&interval=60&from={start}&to={end}",
-                lambda res_data: res_data['data']],
+                lambda res_data: res_data['data'], None],
             'bitfinex': [
                 f"https://api-pub.bitfinex.com/v2/candles/trade:1h:{market}/hist?start={start}&end={end}",
                 lambda res_data: res_data, 1],
             'ftx': [
                 f"https://ftx.com/api/markets/{market}/candles?resolution=3600&start_time={start}&end_time={end}",
-                lambda res_data: res_data['result']],
+                lambda res_data: res_data['result'], None],
         }.items():
             url = val[0]
             fetch = val[1]
