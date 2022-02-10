@@ -59,6 +59,9 @@ class AveragePrice:
             'bitfinex': [
                 f"https://api-pub.bitfinex.com/v2/candles/trade:1h:{market}/hist?start={start}&end={end}",
                 lambda res_data: res_data, 1],
+            'ftx': [
+                f"https://ftx.com/api/markets/{market}/candles?resolution=3600&start_time={start}&end_time={end}",
+                lambda res_data: res_data['result']],
         }.items():
             url = val[0]
             fetch = val[1]
@@ -78,6 +81,10 @@ class AveragePrice:
         for price in open_candle:
             if exchange == 'ascendex':
                 price = float(dict(price).get('data', {}).get('o'))
+                logging.info(f"{price} {len(self.price_database)}")
+                self.price_database.append(price)
+            elif exchange == 'ftx':
+                price = float(dict(price).get('open'))
                 logging.info(f"{price} {len(self.price_database)}")
                 self.price_database.append(price)
             else:
