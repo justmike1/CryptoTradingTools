@@ -74,8 +74,7 @@ class AveragePrice:
                 else:
                     logging.info(f"successfully fetched market {market} in {exchange}")
                     return self.get_price(exchange, fetch(res.json()), index)
-            else:
-                logging.error("exchange config error or not supported")
+
 
     def get_price(self, exchange, open_candle, index):
         for price in open_candle:
