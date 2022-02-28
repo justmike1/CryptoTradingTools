@@ -8,6 +8,16 @@ import sys
 
 with open(sys.argv[1], 'r') as f:
     data = json.load(f)
+    
+
+def calc_date_for_exchange(date, exchange):
+    ts = int(datetime.strptime(date, "%m/%d/%Y %H").timestamp())
+    if exchange in ('binance', 'ascendex', 'bitfinex'):
+        ts *= 1000
+    elif exchange == 'coinbase':
+        # ISO 8601 conversion
+        ts = datetime.fromtimestamp(ts).isoformat()
+    return ts
 
 
 class AveragePrice:
@@ -15,21 +25,12 @@ class AveragePrice:
         logging.basicConfig(
                     level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        
         self.exchange = str(data['exchange']).lower()
         self.market = str(data['market'])  # every exchange utilizes different format
+        # check notion for each date's format
         self.start_date = data['start_date']
         self.end_date = data['end_date']
-
-        def calc_date_for_exchange(date, exchange):
-            # must be in that format
-            ts = int(datetime.strptime(date, "%m/%d/%Y %H").timestamp())
-            if exchange in ('binance', 'ascendex', 'bitfinex'):
-                ts *= 1000
-            elif exchange == 'coinbase':
-                # ISO 8601 conversion
-                ts = datetime.fromtimestamp(ts).isoformat()
-            return ts
+        # must be in that format
 
         self.ts_start = calc_date_for_exchange(self.start_date, self.exchange)
         self.ts_end = calc_date_for_exchange(self.end_date, self.exchange)
@@ -71,7 +72,7 @@ class AveragePrice:
             logging.error(f"{res.status_code}, check {self.exchange} and {self.market} in the config")
         else:
             logging.info(f"successfully fetched market {self.market} in {self.exchange}")
-            return self.get_price(self.exchange, fetch(res.json()), index)
+            self.get_price(self.exchange, fetch(res.json()), index)
 
     def get_price(self, exchange, open_candle, index):
         for price in open_candle:
